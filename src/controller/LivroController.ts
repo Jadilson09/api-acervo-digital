@@ -119,30 +119,39 @@ class LivroController extends Livro {
 
     // Método que recebe um ID pela URL e realiza a remoção lógica do livro no banco
     // "Promise<Response>" indica que este método sempre retorna uma resposta HTTP ao final
-    static async remover(req: Request, res: Response): Promise<Response> {
-        try {
-            // Lê o parâmetro "id" da URL e converte para número inteiro
-            // Exemplo de URL: DELETE /livro/5  →  idLivro = 5
-            const idLivro = parseInt(req.params.id as string);
+   static async remover(req: Request, res: Response): Promise<void> {
+  try {
+    // Lê o parâmetro "id" da URL e converte para número inteiro
+    // Exemplo de URL: DELETE /livro/5  →  idLivro = 5
+    const idLivro = parseInt(req.params.id as string);
 
-            // Chama o método do model para remover (logicamente) o livro com o ID informado
-            // O model também desativa todos os empréstimos relacionados antes de desativar o livro
-            const result = await Livro.removerLivro(idLivro);
-
-            // Verifica o retorno do model: true = remoção bem-sucedida, false = falha
-            if (result) {
-                // ⚠️ Observação: usa status HTTP 201 (Created) para uma remoção — o correto seria 200 (OK)
-                return res.status(201).json({ mensagem: 'Livro removido com sucesso.' });
-            } else {
-                // Retorna status HTTP 404 (Not Found) se o livro não foi encontrado ou já estava inativo
-                return res.status(404).json({ mensagem: 'Livro não encontrado para exclusão.' });
-            }
-        } catch (error) {
-            // Exibe o erro no console e retorna status HTTP 500 em caso de exceção
-            console.error("Erro ao remover o livro: ", error);
-            return res.status(500).json({ mensagem: 'Erro ao remover o livro.' });
-        }
+    // Valida se o ID fornecido é um número válido
+    // isNaN retorna true se a conversão falhar (ex: /livro/abc)
+    if (isNaN(idLivro)) {
+      res.status(400).json({ mensagem: "ID inválido. Informe um número inteiro." });
+      return;
     }
+
+    // Chama o método do model para remover (logicamente) o livro com o ID informado
+    // O model também desativa todos os empréstimos relacionados antes de desativar o livro
+    const result = await Livro.removerLivro(idLivro);
+
+    if (result) {
+      // Retorna mensagem de sucesso com status HTTP 200 (OK)
+      // ⚠️ Corrigido: era 201 (Created), o correto para remoção é 200
+      res.status(200).json({ mensagem: "Livro removido com sucesso." });
+    } else {
+      // Retorna status 404 (Not Found) se o livro não foi encontrado ou já estava inativo
+      res.status(404).json({ mensagem: "Livro não encontrado para exclusão." });
+    }
+
+  } catch (error) {
+    // console.error é o método correto para registrar erros no Node.js
+    console.error(`Erro ao remover o livro: ${error}`);
+    // Retorna status 500 (Internal Server Error) para erros inesperados do servidor
+    res.status(500).json({ mensagem: "Erro ao remover o livro." });
+  }
+}
 
     // Método que recebe os novos dados do front-end e atualiza o cadastro do livro no banco
     static async atualizar(req: Request, res: Response): Promise<Response> {
