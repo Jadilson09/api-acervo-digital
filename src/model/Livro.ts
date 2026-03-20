@@ -345,43 +345,48 @@ class Livro {
      * @returns Boolean indicando se a remoção foi bem-sucedida
     */
     // Realiza uma remoção lógica: não apaga o registro, apenas muda o status para FALSE
-    static async removerLivro(id_livro: number): Promise<boolean> {
-        try {
-            // Busca o livro no banco antes de tentar remover, para verificar se ele existe e está ativo
-            const livro: LivroDTO | null = await this.listarLivro(id_livro);
+  static async removerLivro(id_livro: number): Promise<boolean> {
+  try {
+    // Busca o livro no banco antes de tentar remover, para verificar se ele existe e está ativo
+    const livro: LivroDTO | null = await this.listarLivro(id_livro);
 
-            // Só prossegue se o livro existir (não for null) E estiver com status ativo (true)
-            if (livro && livro.status_livro) {
-                // Primeiro desativa todos os empréstimos relacionados a este livro
-                // Isso garante a consistência dos dados — um livro removido não pode ter empréstimos ativos
-                const queryDeleteEmprestimoLivro = `UPDATE emprestimo
-                                    SET status_emprestimo_registro = FALSE 
-                                    WHERE id_livro = $1`;
-
-                // Executa a desativação dos empréstimos do livro (não precisa verificar o resultado aqui)
-                await database.query(queryDeleteEmprestimoLivro, [id_livro]);
-
-                // Agora desativa o próprio livro (remoção lógica — não apaga, apenas muda o status)
-                const queryDeleteLivro = `UPDATE livro
-                          SET status_livro = FALSE 
-                          WHERE id_livro = $1`;
-
-                // Executa a desativação do livro e armazena o resultado
-                const result = await database.query(queryDeleteLivro, [id_livro]);
-
-                // "rowCount" indica quantas linhas foram afetadas pelo UPDATE
-                // Retorna true se pelo menos uma linha foi alterada, false caso contrário
-                return result.rowCount != 0;
-            }
-
-            // Se o livro não existir ou já estiver inativo, retorna false
-            return false;
-        } catch (error) {
-            // Exibe o erro no console e retorna false em caso de falha
-            console.log(`Erro na consulta: ${error}`);
-            return false;
-        }
+    // Se o livro não existir (null) ou já estiver inativo, interrompe e retorna false
+    // "Early return" evita aninhamento desnecessário com if/else
+    if (!livro || !livro.status_livro) {
+      return false;
     }
+
+    // Primeiro desativa todos os empréstimos relacionados a este livro
+    // Isso garante a consistência dos dados — um livro removido não pode ter empréstimos ativos
+    const queryDeleteEmprestimoLivro = `
+      UPDATE emprestimo
+      SET status_emprestimo_registro = FALSE
+      WHERE id_livro = $1;
+    `;
+
+    // Executa a desativação dos empréstimos do livro
+    await database.query(queryDeleteEmprestimoLivro, [id_livro]);
+
+    // Agora desativa o próprio livro (remoção lógica — não apaga, apenas muda o status)
+    const queryDeleteLivro = `
+      UPDATE livro
+      SET status_livro = FALSE
+      WHERE id_livro = $1;
+    `;
+
+    // Executa a desativação do livro e armazena o resultado
+    const result = await database.query(queryDeleteLivro, [id_livro]);
+
+    // Usa o operador ?? (nullish coalescing) para garantir que rowCount nunca seja null
+    // Se rowCount for maior que 0, pelo menos uma linha foi desativada — operação bem-sucedida
+    return (result.rowCount ?? 0) > 0;
+
+  } catch (error) {
+    // console.error é o método correto para registrar erros no Node.js
+    console.error(`Erro ao remover livro: ${error}`);
+    return false;
+  }
+}
 
     /**
      * Atualiza os dados de um livro no banco de dados.
