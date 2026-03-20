@@ -373,34 +373,35 @@ class Emprestimo {
      * @returns true caso o empréstimo tenha sido removido, false caso contrário
      */
     // Realiza uma remoção lógica: não apaga o registro, apenas muda o status para FALSE
-    static async removerEmprestimo(id_emprestimo: number): Promise<boolean> {
-        try {
-            // Query de remoção lógica — usa UPDATE para desativar o registro em vez de DELETE
-            // Isso preserva o histórico de empréstimos no banco de dados
-            const queryDeleteEmprestimo = `UPDATE emprestimo 
-                                            SET status_emprestimo_registro = FALSE
-                                            WHERE id_emprestimo=$1`;
+static async removerEmprestimo(id_emprestimo: number): Promise<boolean> {
+  try {
+    // Query de remoção lógica — usa UPDATE para desativar o registro em vez de DELETE
+    // Isso preserva o histórico de empréstimos no banco de dados
+    const queryDeleteEmprestimo = `
+      UPDATE emprestimo
+      SET status_emprestimo_registro = FALSE
+      WHERE id_emprestimo = $1;
+    `;
 
-            // Executa a query passando o ID do empréstimo como parâmetro (substitui o $1)
-            const respostaBD = await database.query(queryDeleteEmprestimo, [id_emprestimo]);
+    // Executa a query passando o ID do empréstimo como parâmetro (substitui o $1)
+    const respostaBD = await database.query(queryDeleteEmprestimo, [id_emprestimo]);
 
-            // Verifica se pelo menos uma linha foi afetada pelo UPDATE
-            if (respostaBD.rowCount != 0) {
-                // Exibe mensagem de sucesso no console
-                console.log('Empréstimo removido com sucesso!');
-                // Retorna true para indicar que a remoção foi bem-sucedida
-                return true;
-            }
-
-            // Se rowCount for 0, nenhum registro foi encontrado com esse ID — retorna false
-            return false;
-
-        } catch (error) {
-            // Exibe o erro no console e retorna false em caso de falha
-            console.log(`Erro ao remover empréstimo: ${error}`);
-            return false;
-        }
+    // Usa o operador ?? (nullish coalescing) para garantir que rowCount nunca seja null
+    // Se rowCount for maior que 0, pelo menos uma linha foi desativada — operação bem-sucedida
+    if ((respostaBD.rowCount ?? 0) > 0) {
+      console.log('Empréstimo removido com sucesso!');
+      return true;
     }
+
+    // Se rowCount for 0, nenhum registro foi encontrado com esse ID — retorna false
+    return false;
+
+  } catch (error) {
+    // console.error é o método correto para registrar erros no Node.js
+    console.error(`Erro ao remover empréstimo: ${error}`);
+    return false;
+  }
+}
 }
 
 // Exporta a classe Emprestimo para que possa ser importada e usada em outros arquivos do projeto
