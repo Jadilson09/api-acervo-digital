@@ -182,7 +182,7 @@ static async remover(req: Request, res: Response): Promise<void> {
      * @returns Retorna uma resposta HTTP indicando sucesso ou falha na atualização
      */
     // Método que recebe os novos dados do front-end e atualiza o cadastro do aluno no banco
-    static async atualizar(req: Request, res: Response): Promise<void> {
+static async atualizar(req: Request, res: Response): Promise<void> {
   try {
     // Lê o parâmetro "id" da URL e converte para número inteiro
     // Exemplo de URL: PUT /aluno/7  →  idAluno = 7
@@ -234,7 +234,10 @@ static async remover(req: Request, res: Response): Promise<void> {
   } catch (error) {
     // console.error é o método correto para registrar erros no Node.js
     console.error(`Erro ao atualizar aluno: ${error}`);
-    // Retorna status 500 (Internal Server Error)
+    // Retorna status 500 (Internal Server Error) para erros inesperados do servidor
+    res.status(500).json({ mensagem: "Erro ao atualizar aluno." });
+  }
+}
 }
 
 // Exporta a classe AlunoController para que possa ser importada e usada nas rotas da aplicação
