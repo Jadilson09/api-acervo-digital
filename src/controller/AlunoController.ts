@@ -141,29 +141,38 @@ class AlunoController extends Aluno {
      */
     // Método que recebe um ID pela URL e realiza a remoção lógica do aluno no banco
     // "Promise<Response>" indica que este método sempre retorna uma resposta HTTP ao final
-    static async remover(req: Request, res: Response): Promise<Response> {
-        try {
-            // Lê o parâmetro "id" da URL e converte para número inteiro
-            // Exemplo de URL: DELETE /aluno/3  →  idAluno = 3
-            const idAluno = parseInt(req.params.id as string);
+static async remover(req: Request, res: Response): Promise<void> {
+  try {
+    // Lê o parâmetro "id" da URL e converte para número inteiro
+    // Exemplo de URL: DELETE /aluno/3  →  idAluno = 3
+    const idAluno = parseInt(req.params.id as string);
 
-            // Chama o método do model para remover (logicamente) o aluno com o ID informado
-            const result = await Aluno.removerAluno(idAluno);
-
-            if (result) {
-                // Retorna mensagem de sucesso com status HTTP 201 se a remoção funcionou
-                // ⚠️ Observação: o ideal aqui seria status 200 (OK), pois 201 é para criação de recursos
-                return res.status(201).json({ mensagem: 'Aluno removido com sucesso.' });
-            } else {
-                // Retorna status HTTP 404 (Not Found) se o aluno não foi encontrado ou já estava inativo
-                return res.status(404).json({ mensagem: 'Aluno não encontrado para exclusão.' });
-            }
-        } catch (error) {
-            // Exibe o erro no console e retorna status HTTP 500 em caso de exceção
-            console.log(`Erro ao remover aluno: ${error}`)
-            return res.status(500).json({ mensagem: 'Erro ao remover aluno.' });
-        }
+    // Valida se o ID fornecido é um número válido
+    // isNaN retorna true se a conversão falhar (ex: /aluno/abc)
+    if (isNaN(idAluno)) {
+      res.status(400).json({ mensagem: "ID inválido. Informe um número inteiro." });
+      return;
     }
+
+    // Chama o método do model para remover (logicamente) o aluno com o ID informado
+    const result = await Aluno.removerAluno(idAluno);
+
+    if (result) {
+      // Retorna mensagem de sucesso com status HTTP 200 (OK — operação bem-sucedida)
+      // ⚠️ O status 201 é exclusivo para criação de recursos (POST) — remoção usa 200
+      res.status(200).json({ mensagem: "Aluno removido com sucesso." });
+    } else {
+      // Retorna status 404 (Not Found) se o aluno não foi encontrado ou já estava inativo
+      res.status(404).json({ mensagem: "Aluno não encontrado para exclusão." });
+    }
+
+  } catch (error) {
+    // console.error é o método correto para registrar erros no Node.js
+    console.error(`Erro ao remover aluno: ${error}`);
+    // Retorna status 500 (Internal Server Error) para erros inesperados do servidor
+    res.status(500).json({ mensagem: "Erro ao remover aluno." });
+  }
+}
 
     /**
      * Método para atualizar o cadastro de um aluno.
