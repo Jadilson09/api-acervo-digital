@@ -36,23 +36,38 @@ class LivroController extends Livro {
 }
 
     // Método que busca um único livro com base no ID informado na URL (ex: GET /livro/3)
-    static async livro(req: Request, res: Response) {
-        try {
-            // Lê o parâmetro "id" da URL e converte de string para número inteiro
-            const idLivro = parseInt(req.params.id as string);
+   static async livro(req: Request, res: Response): Promise<void> {
+  try {
+    // Lê o parâmetro "id" da URL e converte de string para número inteiro
+    const idLivro = parseInt(req.params.id as string);
 
-            // Chama o método do model passando o ID para buscar o livro específico no banco
-            const livro = await Livro.listarLivro(idLivro);
-            // Retorna o objeto do livro em JSON com status HTTP 200 (OK)
-            return res.status(200).json(livro);
-        } catch (error) {
-            // Exibe o erro no console do servidor
-            console.log(`Erro ao acessar método herdado: ${error}`);
-            // Retorna mensagem de erro com status HTTP 500
-            // ⚠️ O comentário diz "status code 400" mas o código usa 500 — são códigos diferentes
-            return res.status(500).json("Erro ao recuperar as informações do livro.");
-        }
+    // Valida se o ID fornecido é um número válido
+    // isNaN retorna true se a conversão falhar (ex: /livro/abc)
+    if (isNaN(idLivro)) {
+      res.status(400).json({ mensagem: "ID inválido. Informe um número inteiro." });
+      return;
     }
+
+    // Chama o método do model passando o ID para buscar o livro específico no banco
+    const livro = await Livro.listarLivro(idLivro);
+
+    // Se o model retornar null, o livro não foi encontrado ou está inativo
+    // Retorna status 404 (Not Found) para informar o cliente
+    if (!livro) {
+      res.status(404).json({ mensagem: "Livro não encontrado." });
+      return;
+    }
+
+    // Retorna o objeto do livro em JSON com status HTTP 200 (OK)
+    res.status(200).json(livro);
+
+  } catch (error) {
+    // console.error é o método correto para registrar erros no Node.js
+    console.error(`Erro ao acessar método herdado: ${error}`);
+    // Retorna status 500 (Internal Server Error) para erros inesperados do servidor
+    res.status(500).json({ mensagem: "Erro ao recuperar as informações do livro." });
+  }
+}
 
     // Método que recebe os dados do front-end e cria um novo livro no banco de dados
     static async cadastrar(req: Request, res: Response) {
