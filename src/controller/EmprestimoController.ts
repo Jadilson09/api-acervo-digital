@@ -16,21 +16,29 @@ class EmprestimoController extends Emprestimo {
     */
     // Método estático e assíncrono que busca todos os empréstimos ativos e os retorna em JSON
     // "Promise<Response>" indica que este método sempre retorna uma resposta HTTP ao final
-    static async todos(req: Request, res: Response): Promise<Response> {
-        try {
-            // Chama o método do model para buscar todos os empréstimos ativos no banco
-            // O resultado já vem com os dados de aluno e livro embutidos (graças ao JOIN da query)
-            const listaDeEmprestimos = await Emprestimo.listarEmprestimos();
+  static async todos(req: Request, res: Response): Promise<void> {
+  try {
+    // Chama o método do model para buscar todos os empréstimos ativos no banco
+    // O resultado já vem com os dados de aluno e livro embutidos (graças ao JOIN da query)
+    const listaDeEmprestimos = await Emprestimo.listarEmprestimos();
 
-            // Retorna a lista em formato JSON com status HTTP 200 (OK — requisição bem-sucedida)
-            return res.status(200).json(listaDeEmprestimos);
-        } catch (error) {
-            // Exibe os detalhes do erro no console do servidor para facilitar o debug
-            console.error('Erro ao listar empréstimos:', error);
-            // Retorna mensagem de erro com status HTTP 500 (Internal Server Error)
-            return res.status(500).json({ mensagem: 'Erro ao listar os empréstimos.' });
-        }
+    // Se o model retornar null, significa que houve falha na consulta
+    // Retorna status 400 (Bad Request) para informar o cliente que algo deu errado
+    if (!listaDeEmprestimos) {
+      res.status(400).json({ mensagem: "Não foi possível recuperar as informações dos empréstimos." });
+      return;
     }
+
+    // Retorna a lista em formato JSON com status HTTP 200 (OK — requisição bem-sucedida)
+    res.status(200).json(listaDeEmprestimos);
+
+  } catch (error) {
+    // console.error é o método correto para registrar erros no Node.js
+    console.error(`Erro ao listar empréstimos: ${error}`);
+    // Retorna status 500 (Internal Server Error) para erros inesperados do servidor
+    res.status(500).json({ mensagem: "Erro ao listar os empréstimos." });
+  }
+}
 
     /**
      * Retorna informações de um empréstimo
