@@ -394,59 +394,60 @@ class Livro {
      * @returns true caso sucesso, false caso erro
      */
     // Recebe um objeto Livro com os dados atualizados e os salva no banco
-    static async atualizarLivro(livro: Livro): Promise<boolean> {
-        try {
-            // Antes de atualizar, verifica se o livro existe e está ativo no banco
-            const livroConsulta: LivroDTO | null = await this.listarLivro(livro.id_livro);
+   static async atualizarLivro(livro: Livro): Promise<boolean> {
+  try {
+    // Antes de atualizar, verifica se o livro existe e está ativo no banco
+    const livroConsulta: LivroDTO | null = await this.listarLivro(livro.id_livro);
 
-            // Só prossegue com a atualização se o livro existir e estiver ativo
-            if (livroConsulta && livroConsulta.status_livro) {
-                // Query SQL de atualização com 10 placeholders ($1 a $10)
-                // O $10 no WHERE garante que apenas o livro com o ID correto seja atualizado
-                const queryAtualizarLivro = `UPDATE Livro SET 
-                                titulo = $1, 
-                                autor = $2,
-                                editora = $3, 
-                                ano_publicacao = $4,
-                                isbn = $5, 
-                                quant_total = $6,
-                                quant_disponivel = $7,
-                                valor_aquisicao = $8,
-                                status_livro_emprestado = $9
-                             WHERE id_livro = $10`;
-
-                // Organiza os novos valores em um array na mesma ordem dos placeholders
-                const valores = [
-                    livro.getTitulo().toUpperCase(),               // $1 — Título em maiúsculas
-                    livro.getAutor().toUpperCase(),                // $2 — Autor em maiúsculas
-                    livro.getEditora().toUpperCase(),              // $3 — Editora em maiúsculas
-                    livro.getAnoPublicacao().toUpperCase(),        // $4 — Ano de publicação em maiúsculas
-                    livro.getIsbn().toUpperCase(),                 // $5 — ISBN em maiúsculas
-                    livro.getQuantTotal(),                         // $6 — Quantidade total (número)
-                    livro.getQuantDisponivel(),                    // $7 — Quantidade disponível (número)
-                    livro.getValorAquisicao(),                     // $8 — Valor de aquisição (número)
-                    livro.getStatusLivroEmprestado().toUpperCase(), // $9 — Status em maiúsculas
-                    livro.getIdLivro()                             // $10 — ID do livro (usado no WHERE)
-                ];
-
-                // Executa a query de atualização e armazena o resultado
-                const respostaBD = await database.query(queryAtualizarLivro, valores);
-
-                // Se rowCount for diferente de 0, a atualização funcionou — retorna true
-                if (respostaBD.rowCount != 0) {
-                    return true;
-                }
-            }
-
-            // Se o livro não existe, está inativo, ou o UPDATE não afetou nenhuma linha, retorna false
-            return false;
-
-        } catch (error) {
-            // Exibe o erro no console e retorna false em caso de exceção
-            console.log(`Erro na consulta: ${error}`);
-            return false;
-        }
+    // Se o livro não existir (null) ou estiver inativo, interrompe e retorna false
+    // "Early return" evita aninhamento desnecessário com if/else
+    if (!livroConsulta || !livroConsulta.status_livro) {
+      return false;
     }
+
+    // Query SQL de atualização com 10 placeholders ($1 a $10)
+    // O $10 no WHERE garante que apenas o livro com o ID correto seja atualizado
+    const queryAtualizarLivro = `
+      UPDATE Livro SET
+        titulo                  = $1,
+        autor                   = $2,
+        editora                 = $3,
+        ano_publicacao          = $4,
+        isbn                    = $5,
+        quant_total             = $6,
+        quant_disponivel        = $7,
+        valor_aquisicao         = $8,
+        status_livro_emprestado = $9
+      WHERE id_livro = $10;
+    `;
+
+    // Organiza os novos valores em um array na mesma ordem dos placeholders
+    const valores = [
+      livro.getTitulo().toUpperCase(),                // $1 — Título em maiúsculas
+      livro.getAutor().toUpperCase(),                 // $2 — Autor em maiúsculas
+      livro.getEditora().toUpperCase(),               // $3 — Editora em maiúsculas
+      livro.getAnoPublicacao().toUpperCase(),         // $4 — Ano de publicação em maiúsculas
+      livro.getIsbn().toUpperCase(),                  // $5 — ISBN em maiúsculas
+      livro.getQuantTotal(),                          // $6 — Quantidade total (número)
+      livro.getQuantDisponivel(),                     // $7 — Quantidade disponível (número)
+      livro.getValorAquisicao(),                      // $8 — Valor de aquisição (número)
+      livro.getStatusLivroEmprestado().toUpperCase(), // $9 — Status em maiúsculas
+      livro.getIdLivro()                              // $10 — ID do livro (usado no WHERE)
+    ];
+
+    // Executa a query de atualização e armazena o resultado
+    const respostaBD = await database.query(queryAtualizarLivro, valores);
+
+    // Usa o operador ?? (nullish coalescing) para garantir que rowCount nunca seja null
+    // Se rowCount for maior que 0, pelo menos uma linha foi atualizada — operação bem-sucedida
+    return (respostaBD.rowCount ?? 0) > 0;
+
+  } catch (error) {
+    // console.error é o método correto para registrar erros no Node.js
+    console.error(`Erro ao atualizar livro: ${error}`);
+    return false;
+  }
+}
 
 }
 
