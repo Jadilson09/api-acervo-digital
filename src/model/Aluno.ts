@@ -164,50 +164,57 @@ class Aluno {
     // "async" indica que este método é assíncrono — ele pode "esperar" por operações demoradas (como banco de dados)
     // Retorna uma Promise que, quando resolvida, contém um Array de AlunoDTO ou null
     static async listarAlunos(): Promise<Array<AlunoDTO> | null> {
-        // Cria uma lista vazia que vai receber os alunos encontrados no banco
-        let listaDeAlunos: Array<AlunoDTO> = [];
+  try {
+    // Bloco try: tenta executar o código; se algo der errado, vai para o catch
 
-        try {
-            // Bloco try: tenta executar o código; se algo der errado, vai para o catch
+    // Define a query SQL buscando apenas as colunas necessárias (evitar SELECT *)
+    // Selecionar colunas explícitas melhora a performance e evita trazer dados desnecessários
+    const querySelectAluno = `
+      SELECT 
+        id_aluno,
+        ra,
+        nome,
+        sobrenome,
+        data_nascimento,
+        endereco,
+        email,
+        celular,
+        status_aluno
+      FROM Aluno 
+      WHERE status_aluno = TRUE;
+    `;
 
-            // Define a query SQL que busca todos os alunos ativos no banco de dados
-            const querySelectAluno = `SELECT * FROM Aluno WHERE status_aluno = TRUE;`;
+    // Executa a query no banco de dados e aguarda o resultado
+    // "await" pausa a execução aqui até o banco responder
+    const respostaBD = await database.query(querySelectAluno);
 
-            // Executa a query no banco de dados e aguarda o resultado
-            // "await" pausa a execução aqui até o banco responder
-            const respostaBD = await database.query(querySelectAluno);
+    // .map() transforma cada linha retornada pelo banco em um objeto AlunoDTO
+    // É preferível ao forEach pois já retorna um novo array diretamente,
+    // sem precisar criar uma lista vazia e fazer push manualmente
+    const listaDeAlunos: Array<AlunoDTO> = respostaBD.rows.map((aluno: AlunoDTO) => ({
+      id_aluno: aluno.id_aluno,           // ID do aluno
+      ra: aluno.ra,                       // Registro Acadêmico
+      nome: aluno.nome,                   // Nome
+      sobrenome: aluno.sobrenome,         // Sobrenome
+      data_nascimento: aluno.data_nascimento, // Data de nascimento
+      endereco: aluno.endereco,           // Endereço
+      email: aluno.email,                 // E-mail
+      celular: aluno.celular,             // Celular
+      status_aluno: aluno.status_aluno    // Status ativo/inativo
+    }));
 
-            // Percorre cada linha retornada pelo banco de dados
-            // "aluno" é o apelido dado a cada linha individual retornada
-            respostaBD.rows.forEach((aluno: any) => {
+    // Retorna a lista com todos os alunos encontrados
+    return listaDeAlunos;
 
-                // Cria um objeto AlunoDTO com os dados de cada linha do banco
-                // AlunoDTO é apenas um objeto simples de dados (sem métodos), diferente da classe Aluno
-                const alunoDTO: AlunoDTO = {
-                    id_aluno: aluno.id_aluno,               // ID do aluno
-                    ra: aluno.ra,                           // Registro Acadêmico
-                    nome: aluno.nome,                       // Nome
-                    sobrenome: aluno.sobrenome,             // Sobrenome
-                    data_nascimento: aluno.data_nascimento, // Data de nascimento
-                    endereco: aluno.endereco,               // Endereço
-                    email: aluno.email,                     // E-mail
-                    celular: aluno.celular,                 // Celular
-                    status_aluno: aluno.status_aluno        // Status ativo/inativo
-                };
+  } catch (error) {
+    // console.error é o método correto para registrar erros (diferente de console.log)
+    // Ele exibe em vermelho no terminal e escreve no stderr, facilitando o monitoramento
+    console.error(`Erro ao acessar o modelo: ${error}`);
 
-                // Adiciona o objeto AlunoDTO à lista
-                listaDeAlunos.push(alunoDTO);
-            });
-
-            // Retorna a lista com todos os alunos encontrados
-            return listaDeAlunos;
-        } catch (error) {
-            // Se ocorrer qualquer erro durante a consulta, exibe no console para facilitar o debug
-            console.log(`Erro ao acessar o modelo: ${error}`);
-            // Retorna null para indicar que houve falha
-            return null;
-        }
-    }
+    // Retorna null para indicar que houve falha
+    return null;
+  }
+}
 
     /**
      * Retorna as informações de um aluno informado pelo ID
