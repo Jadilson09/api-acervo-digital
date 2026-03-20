@@ -47,24 +47,39 @@ class EmprestimoController extends Emprestimo {
      * @returns Informações de empréstimo em formato JSON.
      */
     // Método que busca um único empréstimo com base no ID informado na URL (ex: GET /emprestimo/5)
-    static async emprestimo(req: Request, res: Response) {
-        try {
-            // Lê o parâmetro "id" da URL, converte de string para número inteiro e já tipifica como number
-            // O "as string" garante ao TypeScript que o valor existe e é uma string antes do parseInt
-            const idEmprestimo: number = parseInt(req.params.id as string);
+  static async emprestimo(req: Request, res: Response): Promise<void> {
+  try {
+    // Lê o parâmetro "id" da URL e converte de string para número inteiro
+    // O "as string" garante ao TypeScript que o valor existe e é uma string antes do parseInt
+    const idEmprestimo: number = parseInt(req.params.id as string);
 
-            // Chama o método do model passando o ID para buscar o empréstimo específico no banco
-            const emprestimo = await Emprestimo.listarEmprestimo(idEmprestimo);
-            // Retorna o objeto do empréstimo em JSON com status HTTP 200 (OK)
-            res.status(200).json(emprestimo);
-        } catch (error) {
-            // Exibe o erro no console do servidor
-            console.log(`Erro ao acessar método herdado: ${error}`);
-            // Retorna mensagem de erro com status HTTP 500
-            // ⚠️ Observação: o comentário diz "status code 400" mas o código usa 500 — são códigos diferentes
-            res.status(500).json("Erro ao recuperar as informações do aluno.");
-        }
+    // Valida se o ID fornecido é um número válido
+    // isNaN retorna true se a conversão falhar (ex: /emprestimo/abc)
+    if (isNaN(idEmprestimo)) {
+      res.status(400).json({ mensagem: "ID inválido. Informe um número inteiro." });
+      return;
     }
+
+    // Chama o método do model passando o ID para buscar o empréstimo específico no banco
+    const emprestimo = await Emprestimo.listarEmprestimo(idEmprestimo);
+
+    // Se o model retornar null, o empréstimo não foi encontrado
+    // Retorna status 404 (Not Found) para informar o cliente
+    if (!emprestimo) {
+      res.status(404).json({ mensagem: "Empréstimo não encontrado." });
+      return;
+    }
+
+    // Retorna o objeto do empréstimo em JSON com status HTTP 200 (OK)
+    res.status(200).json(emprestimo);
+
+  } catch (error) {
+    // console.error é o método correto para registrar erros no Node.js
+    console.error(`Erro ao acessar método herdado: ${error}`);
+    // Retorna status 500 (Internal Server Error) para erros inesperados do servidor
+    res.status(500).json({ mensagem: "Erro ao recuperar as informações do empréstimo." });
+  }
+}
 
     /**
      * Cadastra um novo empréstimo.
