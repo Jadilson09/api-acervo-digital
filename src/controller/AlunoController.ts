@@ -48,23 +48,39 @@ class AlunoController extends Aluno {
      * @returns Informações de aluno em formato JSON.
      */
     // Método que busca um único aluno com base no ID informado na URL (ex: GET /aluno/5)
-    static async aluno(req: Request, res: Response) {
-        try {
-            // Lê o parâmetro "id" da URL (req.params.id) e converte de string para número inteiro
-            // O "as string" garante ao TypeScript que o valor existe e é uma string
-            const idAluno = parseInt(req.params.id as string);
+   static async aluno(req: Request, res: Response): Promise<void> {
+  try {
+    // Lê o parâmetro "id" da URL (req.params.id) e converte de string para número inteiro
+    // O "as string" garante ao TypeScript que o valor existe e é uma string
+    const idAluno = parseInt(req.params.id as string);
 
-            // Chama o método do model passando o ID para buscar o aluno específico no banco
-            const aluno = await Aluno.listarAluno(idAluno);
-            // Retorna o objeto do aluno em JSON com status HTTP 200 (OK)
-            res.status(200).json(aluno);
-        } catch (error) {
-            // Exibe o erro no console do servidor
-            console.log(`Erro ao acessar método herdado: ${error}`);
-            // Retorna mensagem de erro com status HTTP 500
-            res.status(500).json("Erro ao recuperar as informações do aluno.");
-        }
+    // Valida se o ID fornecido é um número válido
+    // isNaN retorna true se a conversão falhar (ex: /aluno/abc)
+    if (isNaN(idAluno)) {
+      res.status(400).json("ID inválido. Informe um número inteiro.");
+      return;
     }
+
+    // Chama o método do model passando o ID para buscar o aluno específico no banco
+    const aluno = await Aluno.listarAluno(idAluno);
+
+    // Se o model retornar null, o aluno não foi encontrado ou está inativo
+    // Retorna status 404 (Not Found) para informar o cliente
+    if (!aluno) {
+      res.status(404).json("Aluno não encontrado.");
+      return;
+    }
+
+    // Retorna o objeto do aluno em JSON com status HTTP 200 (OK)
+    res.status(200).json(aluno);
+
+  } catch (error) {
+    // console.error é o método correto para registrar erros no Node.js
+    console.error(`Erro ao acessar método herdado: ${error}`);
+    // Retorna status 500 (Internal Server Error) para erros inesperados do servidor
+    res.status(500).json("Erro ao recuperar as informações do aluno.");
+  }
+}
 
     /**
       * Cadastra um novo aluno.
