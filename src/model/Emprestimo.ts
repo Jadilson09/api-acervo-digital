@@ -199,57 +199,70 @@ class Emprestimo {
      * @returns Objeto com informações do empréstimo
      */
     // Recebe o ID do empréstimo e retorna um único EmprestimoDTO ou null
-    static async listarEmprestimo(id_emprestimo: number): Promise<EmprestimoDTO | null> {
-        try {
-            // Query SQL com JOIN igual ao listarEmprestimos, mas filtrando por um ID específico
-            // O "$1" é o placeholder que será substituído pelo valor de id_emprestimo (proteção contra SQL Injection)
-            const querySelectEmprestimo = `SELECT e.id_emprestimo, e.id_aluno, e.id_livro,
-                       e.data_emprestimo, e.data_devolucao, e.status_emprestimo, e.status_emprestimo_registro,
-                       a.ra, a.nome, a.sobrenome, a.celular, a.email,
-                       l.titulo, l.autor, l.editora, l.isbn
-                FROM Emprestimo e
-                JOIN Aluno a ON e.id_aluno = a.id_aluno
-                JOIN Livro l ON e.id_livro = l.id_livro
-                WHERE e.id_emprestimo = $1;`;
+  static async listarEmprestimo(id_emprestimo: number): Promise<EmprestimoDTO | null> {
+  try {
+    // Query SQL com JOIN igual ao listarEmprestimos, mas filtrando por um ID específico
+    // O "$1" é o placeholder substituído pelo valor de id_emprestimo (proteção contra SQL Injection)
+    const querySelectEmprestimo = `
+      SELECT e.id_emprestimo, e.id_aluno, e.id_livro,
+             e.data_emprestimo, e.data_devolucao, e.status_emprestimo, e.status_emprestimo_registro,
+             a.ra, a.nome, a.sobrenome, a.celular, a.email,
+             l.titulo, l.autor, l.editora, l.isbn
+      FROM Emprestimo e
+      JOIN Aluno a ON e.id_aluno = a.id_aluno
+      JOIN Livro l ON e.id_livro = l.id_livro
+      WHERE e.id_emprestimo = $1;
+    `;
 
-            // Executa a query passando o id_emprestimo como parâmetro (substitui o $1)
-            const respostaBD = await database.query(querySelectEmprestimo, [id_emprestimo]);
+    // Executa a query passando o id_emprestimo como parâmetro (substitui o $1)
+    const respostaBD = await database.query(querySelectEmprestimo, [id_emprestimo]);
 
-            // Monta o objeto EmprestimoDTO com os dados da primeira (e única) linha retornada
-            // rows[0] acessa a primeira linha do resultado
-            const emprestimoDTO: EmprestimoDTO = {
-                id_emprestimo: respostaBD.rows[0].id_emprestimo,
-                data_emprestimo: respostaBD.rows[0].data_emprestimo,
-                data_devolucao: respostaBD.rows[0].data_devolucao,
-                status_emprestimo: respostaBD.rows[0].status_emprestimo,
-                status_emprestimo_registro: respostaBD.rows[0].status_emprestimo_registro,
-                // Objeto aninhado com dados do aluno
-                aluno: {
-                    id_aluno: respostaBD.rows[0].id_aluno,
-                    ra: respostaBD.rows[0].ra,
-                    nome: respostaBD.rows[0].nome,
-                    sobrenome: respostaBD.rows[0].sobrenome,
-                    celular: respostaBD.rows[0].celular,
-                    email: respostaBD.rows[0].email
-                },
-                // Objeto aninhado com dados do livro
-                livro: {
-                    id_livro: respostaBD.rows[0].id_livro,
-                    titulo: respostaBD.rows[0].titulo,
-                    autor: respostaBD.rows[0].autor,
-                    editora: respostaBD.rows[0].editora,
-                    isbn: respostaBD.rows[0].isbn
-                }
-            };
-
-            // Retorna o objeto empréstimo montado com os dados do banco
-            return emprestimoDTO;
-        } catch (error) {
-            // Exibe o erro no console e retorna null em caso de falha
-            console.error(`Erro ao realizar consulta: ${error}`);
-            return null;
-        }
+    // Verifica se algum empréstimo foi encontrado antes de tentar acessar os dados
+    // Sem essa verificação, acessar rows[0] quando vazio causaria um erro em runtime
+    if (respostaBD.rows.length === 0) {
+      return null;
     }
+
+    // Atalho: armazena a primeira linha em uma variável para evitar repetição de "respostaBD.rows[0]"
+    const row = respostaBD.rows[0];
+
+    // Monta o objeto EmprestimoDTO com os dados retornados pelo banco
+    const emprestimoDTO: EmprestimoDTO = {
+      id_emprestimo:              row.id_emprestimo,
+      data_emprestimo:            row.data_emprestimo,
+      data_devolucao:             row.data_devolucao,
+      status_emprestimo:          row.status_emprestimo,
+      status_emprestimo_registro: row.status_emprestimo_registro,
+
+      // Objeto aninhado com os dados do aluno relacionado ao empréstimo
+      aluno: {
+        id_aluno:  row.id_aluno,
+        ra:        row.ra,
+        nome:      row.nome,
+        sobrenome: row.sobrenome,
+        celular:   row.celular,
+        email:     row.email
+      },
+
+      // Objeto aninhado com os dados do livro relacionado ao empréstimo
+      livro: {
+        id_livro: row.id_livro,
+        titulo:   row.titulo,
+        autor:    row.autor,
+        editora:  row.editora,
+        isbn:     row.isbn
+      }
+    };
+
+    // Retorna o objeto empréstimo montado com os dados do banco
+    return emprestimoDTO;
+
+  } catch (error) {
+    // console.error é o método correto para registrar erros no Node.js
+    console.error(`Erro ao realizar consulta: ${error}`);
+    return null;
+  }
+}
 
     /**
      * Cadastra um novo empréstimo no banco de dados
