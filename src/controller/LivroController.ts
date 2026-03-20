@@ -12,19 +12,28 @@ class LivroController extends Livro {
 
     // Método que busca todos os livros ativos e os retorna em formato JSON
     // ⚠️ Diferença dos outros controllers: este método não tem JSDoc (comentário de documentação acima dele)
-    static async todos(req: Request, res: Response) {
-        try {
-            // Chama o método do model para buscar todos os livros com status ativo no banco
-            const listaDeLivros = await Livro.listarLivros();
-            // Retorna a lista em formato JSON com status HTTP 200 (OK — requisição bem-sucedida)
-            return res.status(200).json(listaDeLivros);
-        } catch (error) {
-            // Exibe os detalhes do erro no console do servidor para facilitar o debug
-            console.error(`Erro ao listar livros: ${error}`);
-            // Retorna mensagem de erro com status HTTP 500 (Internal Server Error)
-            return res.status(500).json({ mensagem: "Erro ao recuperar as informações dos livros." });
-        }
+ static async todos(req: Request, res: Response): Promise<void> {
+  try {
+    // Chama o método do model para buscar todos os livros com status ativo no banco
+    const listaDeLivros = await Livro.listarLivros();
+
+    // Se o model retornar null, significa que houve falha na consulta
+    // Retorna status 400 (Bad Request) para informar o cliente que algo deu errado
+    if (!listaDeLivros) {
+      res.status(400).json({ mensagem: "Não foi possível recuperar as informações dos livros." });
+      return;
     }
+
+    // Retorna a lista em formato JSON com status HTTP 200 (OK — requisição bem-sucedida)
+    res.status(200).json(listaDeLivros);
+
+  } catch (error) {
+    // console.error é o método correto para registrar erros no Node.js
+    console.error(`Erro ao listar livros: ${error}`);
+    // Retorna status 500 (Internal Server Error) para erros inesperados do servidor
+    res.status(500).json({ mensagem: "Erro ao recuperar as informações dos livros." });
+  }
+}
 
     // Método que busca um único livro com base no ID informado na URL (ex: GET /livro/3)
     static async livro(req: Request, res: Response) {
