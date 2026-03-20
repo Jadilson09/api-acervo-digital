@@ -134,42 +134,59 @@ class EmprestimoController extends Emprestimo {
      * Recebe os dados do empréstimo a partir da requisição e passa para o serviço.
      */
     // Método que recebe os novos dados do front-end e atualiza o empréstimo no banco
-    static async atualizar(req: Request, res: Response): Promise<Response> {
-        try {
-            // Lê o corpo da requisição e tipifica como EmprestimoDTO
-            const dadosRecebidos: EmprestimoDTO = req.body;
-            // Lê o parâmetro "id" da URL e converte para número inteiro
-            // Exemplo de URL: PUT /emprestimo/4  →  idEmprestimo = 4
-            const idEmprestimo = parseInt(req.params.id as string);
+static async atualizar(req: Request, res: Response): Promise<void> {
+  try {
+    // Lê o parâmetro "id" da URL e converte para número inteiro
+    // Exemplo de URL: PUT /emprestimo/4  →  idEmprestimo = 4
+    const idEmprestimo = parseInt(req.params.id as string);
 
-            // Chama o método do model passando cada campo individualmente como parâmetro
-            // Diferente do cadastrar, o atualizarEmprestimo recebe os dados separados (não um objeto Emprestimo)
-            const result = await Emprestimo.atualizarEmprestimo(
-                idEmprestimo,                              // ID do empréstimo a ser atualizado (usado no WHERE da query)
-                dadosRecebidos.aluno.id_aluno,             // Novo ID do aluno
-                dadosRecebidos.livro.id_livro,             // Novo ID do livro
-                new Date(dadosRecebidos.data_emprestimo),  // Nova data de empréstimo convertida para Date
-                // Se data_devolucao foi informada, converte para Date; senão usa a data atual como fallback
-                // ⚠️ Diferença do cadastrar: aqui usa new Date() (data atual) ao invés de undefined
-                dadosRecebidos.data_devolucao ? new Date(dadosRecebidos.data_devolucao) : new Date(),
-                dadosRecebidos.status_emprestimo ?? ""     // Novo status — usa string vazia se não informado
-            );
-
-            // Verifica o retorno do model: true = atualização bem-sucedida, false = falha
-            if (result) {
-                // Retorna mensagem de sucesso com status HTTP 200 (OK)
-                return res.status(200).json({ mensagem: 'Empréstimo atualizado com sucesso.' });
-            } else {
-                // Retorna mensagem de erro com status HTTP 500
-                // ⚠️ Observação: a mensagem diz "cadastrar o livro" mas deveria dizer "atualizar o empréstimo"
-                return res.status(500).json({ mensagem: 'Não foi possível cadastrar o livro no banco de dados.' });
-            }
-        } catch (error) {
-            // Exibe o erro no console e retorna status HTTP 500 em caso de exceção
-            console.error('Erro ao atualizar empréstimo:', error);
-            return res.status(500).json({ mensagem: 'Erro ao atualizar o empréstimo.' });
-        }
+    // Valida se o ID fornecido é um número válido
+    // isNaN retorna true se a conversão falhar (ex: /emprestimo/abc)
+    if (isNaN(idEmprestimo)) {
+      res.status(400).json({ mensagem: "ID inválido. Informe um número inteiro." });
+      return;
     }
+
+    // Lê o corpo da requisição e tipifica como EmprestimoDTO
+    // O front-end envia os dados atualizados no corpo da requisição em formato JSON
+    const dadosRecebidos: EmprestimoDTO = req.body;
+
+    // Valida se os campos obrigatórios foram enviados antes de tentar atualizar
+    // O operador ?. (optional chaining) evita crash se "aluno" ou "livro" vier undefined no body
+    if (!dadosRecebidos.aluno?.id_aluno || !dadosRecebidos.livro?.id_livro || !dadosRecebidos.data_emprestimo) {
+      res.status(400).json({ mensagem: "ID do aluno, ID do livro e data do empréstimo são obrigatórios." });
+      return;
+    }
+
+    // Chama o método do model passando cada campo individualmente como parâmetro
+    // Diferente do cadastrar, o atualizarEmprestimo recebe os dados separados (não um objeto Emprestimo)
+    const result = await Emprestimo.atualizarEmprestimo(
+      idEmprestimo,                                                           // ID do empréstimo (usado no WHERE)
+      dadosRecebidos.aluno.id_aluno,                                          // Novo ID do aluno
+      dadosRecebidos.livro.id_livro,                                          // Novo ID do livro
+      new Date(dadosRecebidos.data_emprestimo),                               // Nova data de empréstimo
+      dadosRecebidos.data_devolucao ? new Date(dadosRecebidos.data_devolucao) : new Date(),
+      // Se data_devolucao foi informada, converte para Date; senão usa a data atual como fallback
+      // ⚠️ Diferença do cadastrar: aqui usa new Date() (data atual) ao invés de undefined
+      dadosRecebidos.status_emprestimo ?? ""                                  // Novo status do empréstimo
+    );
+
+    if (result) {
+      // Retorna mensagem de sucesso com status HTTP 200 (OK)
+      res.status(200).json({ mensagem: "Empréstimo atualizado com sucesso." });
+    } else {
+      // Retorna status 400 (Bad Request) se o banco não conseguiu atualizar
+      // Pode indicar que o empréstimo não existe no banco
+      res.status(400).json({ mensagem: "Não foi possível atualizar o empréstimo no banco de dados." });
+    }
+
+  } catch (error) {
+    // console.error é o método correto para registrar erros no Node.js
+    console.error(`Erro ao atualizar empréstimo: ${error}`);
+    // Retorna status 500 (Internal Server Error) para erros inesperados do servidor
+    res.status(500).json({ mensagem: "Erro ao atualizar o empréstimo." });
+  }
+}
 
     /**
     * Método para remover um empréstimo do banco de dados
