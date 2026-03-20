@@ -126,79 +126,71 @@ class Emprestimo {
     * @returns Lista com todos os Emprestimos cadastrados no banco de dados
     */
     // Método assíncrono que busca todos os empréstimos ativos e retorna uma lista de EmprestimoDTO ou null
-    static async listarEmprestimos(): Promise<Array<EmprestimoDTO> | null> {
-        // Cria uma lista vazia que vai receber os empréstimos encontrados no banco
-        let listaDeEmprestimos: Array<EmprestimoDTO> = [];
+   static async listarEmprestimos(): Promise<Array<EmprestimoDTO> | null> {
+  try {
+    // Query SQL com JOIN: une três tabelas (Emprestimo, Aluno e Livro) em uma única consulta
+    // Isso evita múltiplas consultas ao banco — traz os dados de aluno e livro juntos com o empréstimo
+    // JOIN Aluno ON e.id_aluno = a.id_aluno: conecta o empréstimo ao seu respectivo aluno
+    // JOIN Livro ON e.id_livro = l.id_livro: conecta o empréstimo ao seu respectivo livro
+    // WHERE status_emprestimo_registro = TRUE: traz apenas registros ativos (não removidos)
+    const querySelectEmprestimo = `
+      SELECT e.id_emprestimo, e.id_aluno, e.id_livro,
+             e.data_emprestimo, e.data_devolucao, e.status_emprestimo, e.status_emprestimo_registro,
+             a.ra, a.nome, a.sobrenome, a.celular, a.email,
+             l.titulo, l.autor, l.editora, l.isbn
+      FROM Emprestimo e
+      JOIN Aluno a ON e.id_aluno = a.id_aluno
+      JOIN Livro l ON e.id_livro = l.id_livro
+      WHERE e.status_emprestimo_registro = TRUE;
+    `;
 
-        try {
-            // Query SQL com JOIN: une três tabelas (Emprestimo, Aluno e Livro) em uma única consulta
-            // Isso evita múltiplas consultas ao banco — traz os dados de aluno e livro juntos com o empréstimo
-            // JOIN Aluno ON e.id_aluno = a.id_aluno: conecta o empréstimo ao seu respectivo aluno
-            // JOIN Livro ON e.id_livro = l.id_livro: conecta o empréstimo ao seu respectivo livro
-            // WHERE status_emprestimo_registro = TRUE: traz apenas registros ativos (não removidos)
-            const querySelectEmprestimo = `
-                SELECT e.id_emprestimo, e.id_aluno, e.id_livro,
-                       e.data_emprestimo, e.data_devolucao, e.status_emprestimo, e.status_emprestimo_registro,
-                       a.ra, a.nome, a.sobrenome, a.celular, a.email,
-                       l.titulo, l.autor, l.editora, l.isbn
-                FROM Emprestimo e
-                JOIN Aluno a ON e.id_aluno = a.id_aluno
-                JOIN Livro l ON e.id_livro = l.id_livro
-                WHERE e.status_emprestimo_registro = TRUE;
-            `;
+    // Executa a query no banco de dados e aguarda o resultado
+    const respostaBD = await database.query(querySelectEmprestimo);
 
-            // Executa a query no banco de dados e aguarda o resultado
-            const respostaBD = await database.query(querySelectEmprestimo);
-
-            // Se o banco não retornou nenhuma linha, não há empréstimos — retorna null
-            if (respostaBD.rows.length === 0) {
-                return null;
-            }
-
-            // Percorre cada linha retornada pelo banco de dados
-            // "linha" é o apelido dado a cada registro individual retornado
-            respostaBD.rows.forEach((linha: any) => {
-                // Monta o objeto EmprestimoDTO com os dados da linha atual
-                // Repare que o EmprestimoDTO tem objetos aninhados: "aluno" e "livro" dentro do empréstimo
-                const emprestimoDTO: EmprestimoDTO = {
-                    id_emprestimo: linha.id_emprestimo,                       // ID do empréstimo
-                    data_emprestimo: linha.data_emprestimo,                   // Data do empréstimo
-                    data_devolucao: linha.data_devolucao,                     // Data de devolução
-                    status_emprestimo: linha.status_emprestimo,               // Status do empréstimo
-                    status_emprestimo_registro: linha.status_emprestimo_registro, // Status do registro
-                    // Objeto aninhado com os dados do aluno relacionado ao empréstimo
-                    aluno: {
-                        id_aluno: linha.id_aluno,       // ID do aluno
-                        ra: linha.ra,                   // Registro Acadêmico
-                        nome: linha.nome,               // Nome do aluno
-                        sobrenome: linha.sobrenome,     // Sobrenome do aluno
-                        celular: linha.celular,         // Celular do aluno
-                        email: linha.email              // E-mail do aluno
-                    },
-                    // Objeto aninhado com os dados do livro relacionado ao empréstimo
-                    livro: {
-                        id_livro: linha.id_livro,  // ID do livro
-                        titulo: linha.titulo,      // Título do livro
-                        autor: linha.autor,        // Autor do livro
-                        editora: linha.editora,    // Editora do livro
-                        isbn: linha.isbn           // ISBN do livro
-                    }
-                };
-
-                // Adiciona o objeto EmprestimoDTO montado à lista de empréstimos
-                listaDeEmprestimos.push(emprestimoDTO);
-            });
-
-            // Retorna a lista completa de empréstimos encontrados
-            return listaDeEmprestimos;
-
-        } catch (error) {
-            // Se ocorrer qualquer erro durante a consulta, exibe no console para facilitar o debug
-            console.log(`Erro ao acessar o modelo: ${error}`);
-            // Retorna null para indicar que houve falha
-            return null;
-        }
+    // Se o banco não retornou nenhuma linha, não há empréstimos — retorna null
+    if (respostaBD.rows.length === 0) {
+      return null;
     }
+
+    // .map() transforma cada linha retornada pelo banco em um objeto EmprestimoDTO
+    // O parâmetro é tipado como "any" pois os dados brutos do banco não seguem exatamente
+    // a estrutura do EmprestimoDTO — a montagem do objeto é feita manualmente abaixo
+    const listaDeEmprestimos: Array<EmprestimoDTO> = respostaBD.rows.map((linha: any) => ({
+      id_emprestimo:              linha.id_emprestimo,
+      data_emprestimo:            linha.data_emprestimo,            // Data do empréstimo
+      data_devolucao:             linha.data_devolucao,             // Data de devolução (opcional)
+      status_emprestimo:          linha.status_emprestimo,          // Status do empréstimo (opcional)
+      status_emprestimo_registro: linha.status_emprestimo_registro, // Status do registro (opcional)
+
+      // Objeto aninhado com os dados do aluno relacionado ao empréstimo
+      aluno: {
+        id_aluno:  linha.id_aluno,
+        ra:        linha.ra,        // Registro Acadêmico
+        nome:      linha.nome,
+        sobrenome: linha.sobrenome,
+        celular:   linha.celular,
+        email:     linha.email
+      },
+
+      // Objeto aninhado com os dados do livro relacionado ao empréstimo
+      livro: {
+        id_livro: linha.id_livro,
+        titulo:   linha.titulo,   // Título do livro
+        autor:    linha.autor,    // Autor do livro
+        editora:  linha.editora,  // Editora do livro
+        isbn:     linha.isbn      // ISBN do livro
+      }
+    }));
+
+    // Retorna a lista completa de empréstimos encontrados
+    return listaDeEmprestimos;
+
+  } catch (error) {
+    // console.error é o método correto para registrar erros no Node.js
+    console.error(`Erro ao acessar o modelo: ${error}`);
+    return null;
+  }
+}
 
     /**
      * Retorna as informações de um empréstimo informado pelo ID
