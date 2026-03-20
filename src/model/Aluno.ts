@@ -164,57 +164,50 @@ class Aluno {
     // "async" indica que este método é assíncrono — ele pode "esperar" por operações demoradas (como banco de dados)
     // Retorna uma Promise que, quando resolvida, contém um Array de AlunoDTO ou null
     static async listarAlunos(): Promise<Array<AlunoDTO> | null> {
-  try {
-    // Bloco try: tenta executar o código; se algo der errado, vai para o catch
+        // Cria uma lista vazia que vai receber os alunos encontrados no banco
+        let listaDeAlunos: Array<AlunoDTO> = [];
 
-    // Define a query SQL buscando apenas as colunas necessárias (evitar SELECT *)
-    // Selecionar colunas explícitas melhora a performance e evita trazer dados desnecessários
-    const querySelectAluno = `
-      SELECT 
-        id_aluno,
-        ra,
-        nome,
-        sobrenome,
-        data_nascimento,
-        endereco,
-        email,
-        celular,
-        status_aluno
-      FROM Aluno 
-      WHERE status_aluno = TRUE;
-    `;
+        try {
+            // Bloco try: tenta executar o código; se algo der errado, vai para o catch
 
-    // Executa a query no banco de dados e aguarda o resultado
-    // "await" pausa a execução aqui até o banco responder
-    const respostaBD = await database.query(querySelectAluno);
+            // Define a query SQL que busca todos os alunos ativos no banco de dados
+            const querySelectAluno = `SELECT * FROM Aluno WHERE status_aluno = TRUE;`;
 
-    // .map() transforma cada linha retornada pelo banco em um objeto AlunoDTO
-    // É preferível ao forEach pois já retorna um novo array diretamente,
-    // sem precisar criar uma lista vazia e fazer push manualmente
-    const listaDeAlunos: Array<AlunoDTO> = respostaBD.rows.map((aluno: AlunoDTO) => ({
-      id_aluno: aluno.id_aluno,           // ID do aluno
-      ra: aluno.ra,                       // Registro Acadêmico
-      nome: aluno.nome,                   // Nome
-      sobrenome: aluno.sobrenome,         // Sobrenome
-      data_nascimento: aluno.data_nascimento, // Data de nascimento
-      endereco: aluno.endereco,           // Endereço
-      email: aluno.email,                 // E-mail
-      celular: aluno.celular,             // Celular
-      status_aluno: aluno.status_aluno    // Status ativo/inativo
-    }));
+            // Executa a query no banco de dados e aguarda o resultado
+            // "await" pausa a execução aqui até o banco responder
+            const respostaBD = await database.query(querySelectAluno);
 
-    // Retorna a lista com todos os alunos encontrados
-    return listaDeAlunos;
+            // Percorre cada linha retornada pelo banco de dados
+            // "aluno" é o apelido dado a cada linha individual retornada
+            respostaBD.rows.forEach((aluno: any) => {
 
-  } catch (error) {
-    // console.error é o método correto para registrar erros (diferente de console.log)
-    // Ele exibe em vermelho no terminal e escreve no stderr, facilitando o monitoramento
-    console.error(`Erro ao acessar o modelo: ${error}`);
+                // Cria um objeto AlunoDTO com os dados de cada linha do banco
+                // AlunoDTO é apenas um objeto simples de dados (sem métodos), diferente da classe Aluno
+                const alunoDTO: AlunoDTO = {
+                    id_aluno: aluno.id_aluno,               // ID do aluno
+                    ra: aluno.ra,                           // Registro Acadêmico
+                    nome: aluno.nome,                       // Nome
+                    sobrenome: aluno.sobrenome,             // Sobrenome
+                    data_nascimento: aluno.data_nascimento, // Data de nascimento
+                    endereco: aluno.endereco,               // Endereço
+                    email: aluno.email,                     // E-mail
+                    celular: aluno.celular,                 // Celular
+                    status_aluno: aluno.status_aluno        // Status ativo/inativo
+                };
 
-    // Retorna null para indicar que houve falha
-    return null;
-  }
-}
+                // Adiciona o objeto AlunoDTO à lista
+                listaDeAlunos.push(alunoDTO);
+            });
+
+            // Retorna a lista com todos os alunos encontrados
+            return listaDeAlunos;
+        } catch (error) {
+            // Se ocorrer qualquer erro durante a consulta, exibe no console para facilitar o debug
+            console.log(`Erro ao acessar o modelo: ${error}`);
+            // Retorna null para indicar que houve falha
+            return null;
+        }
+    }
 
     /**
      * Retorna as informações de um aluno informado pelo ID
@@ -224,83 +217,113 @@ class Aluno {
      */
     // Recebe o ID do aluno como parâmetro e retorna um AlunoDTO ou null
     static async listarAluno(id_aluno: number): Promise<AlunoDTO | null> {
-        try {
-            // Bloco try: aqui tentamos executar o código que pode gerar um erro.
-            // Se ocorrer algum erro dentro deste bloco, ele será capturado pelo catch.
+  try {
+    // Bloco try: tentamos executar o código que pode gerar um erro.
+    // Se ocorrer algum erro dentro deste bloco, ele será capturado pelo catch.
 
-            // Define a query SQL — o "$1" é um parâmetro que será substituído pelo valor real (id_aluno)
-            // Isso é chamado de "prepared statement" e protege contra ataques de SQL Injection
-            const querySelectAluno = `SELECT * FROM aluno WHERE id_aluno = $1`;
+    // Define a query SQL com colunas explícitas (evitar SELECT *)
+    // O "$1" é um parâmetro substituído pelo valor real em tempo de execução.
+    // Isso é chamado de "prepared statement" e protege contra SQL Injection.
+    const querySelectAluno = `
+      SELECT
+        id_aluno,
+        ra,
+        nome,
+        sobrenome,
+        data_nascimento,
+        endereco,
+        email,
+        celular,
+        status_aluno
+      FROM aluno
+      WHERE id_aluno = $1
+    `;
 
-            // Executa a query passando o id_aluno como segundo argumento (substitui o $1)
-            const respostaBD = await database.query(querySelectAluno, [id_aluno]);
+    // Executa a query passando o id_aluno como segundo argumento (substitui o $1)
+    const respostaBD = await database.query(querySelectAluno, [id_aluno]);
 
-            // Monta o objeto AlunoDTO com o primeiro resultado retornado (rows[0] = primeira linha)
-            const alunoDTO: AlunoDTO = {
-                id_aluno: respostaBD.rows[0].id_aluno,               // ID do aluno
-                nome: respostaBD.rows[0].nome,                       // Nome do aluno
-                sobrenome: respostaBD.rows[0].sobrenome,             // Sobrenome do aluno
-                data_nascimento: respostaBD.rows[0].data_nascimento, // Data de nascimento do aluno
-                endereco: respostaBD.rows[0].endereco,               // Endereço do aluno
-                email: respostaBD.rows[0].email,                     // E-mail do aluno
-                celular: respostaBD.rows[0].celular,                 // Celular do aluno
-                ra: respostaBD.rows[0].ra,                           // Registro Acadêmico
-                status_aluno: respostaBD.rows[0].status_aluno        // Status ativo/inativo
-            };
-
-            // Retorna o objeto aluno preenchido com os dados do banco
-            return alunoDTO;
-        } catch (error) {
-            // Bloco catch: se algum erro ocorrer no bloco try, ele será capturado aqui.
-            // Isso evita que o erro interrompa a execução do programa.
-
-            // Exibe uma mensagem de erro no console para facilitar o debug
-            console.log(`Erro ao realizar a consulta: ${error}`);
-
-            // Retorna null para indicar que não foi possível buscar o aluno
-            return null;
-        }
+    // Verifica se algum aluno foi encontrado antes de tentar acessar os dados
+    // Sem essa verificação, acessar rows[0] quando vazio causaria um erro em runtime
+    if (respostaBD.rows.length === 0) {
+      return null;
     }
 
-    /**
-    * Cadastra um novo aluno no banco de dados
-    * @param aluno Objeto Aluno contendo as informações a serem cadastradas
-    * @returns Boolean indicando se o cadastro foi bem-sucedido
-    */
-    // Recebe um objeto Aluno completo e tenta inseri-lo no banco de dados
-    static async cadastrarAluno(aluno: Aluno): Promise<boolean> {
-        try {
-            // Query SQL de inserção — os "$1", "$2"... são placeholders substituídos pelos valores reais
-            // "RETURNING id_aluno" faz o banco retornar o ID gerado automaticamente após o INSERT
-            const queryInsertAluno = `INSERT INTO Aluno (nome, sobrenome, data_nascimento, endereco, email, celular)
-                                            VALUES ('$1','$2','$3','$4','$5','$6') RETURNING id_aluno;`;
+    // Atalho: armazena a primeira linha em uma variável para evitar repetição de "respostaBD.rows[0]"
+    const row = respostaBD.rows[0];
 
-            // Executa a query passando os valores do objeto aluno
-            // .toUpperCase() converte texto para maiúsculas; .toLowerCase() converte para minúsculas
-            const result = await database.query(queryInsertAluno, [aluno.getNome().toUpperCase(),
-            aluno.getSobrenome().toUpperCase(),     // Sobrenome em maiúsculas
-            aluno.getDataNascimento(),              // Data de nascimento sem transformação
-            aluno.getEndereco().toUpperCase(),      // Endereço em maiúsculas
-            aluno.getEmail().toLowerCase(),         // E-mail em minúsculas
-            aluno.getCelular()]);                   // Celular sem transformação
+    // Monta o objeto AlunoDTO com os dados retornados pelo banco
+    // AlunoDTO é um objeto simples de dados (sem métodos), ideal para trafegar informações
+    const alunoDTO: AlunoDTO = {
+      id_aluno:        row.id_aluno,
+      ra:              row.ra,                // Registro Acadêmico
+      nome:            row.nome,
+      sobrenome:       row.sobrenome,
+      data_nascimento: row.data_nascimento,
+      endereco:        row.endereco,
+      email:           row.email,
+      celular:         row.celular,
+      status_aluno:    row.status_aluno       // Status ativo/inativo
+    };
 
-            // Verifica se o banco retornou pelo menos uma linha (ou seja, o INSERT funcionou)
-            if (result.rows.length > 0) {
-                // Exibe no console o ID do aluno recém-cadastrado
-                console.log(`Aluno cadastrado com sucesso. ID: ${result.rows[0].id_aluno}`);
-                // Retorna true para indicar sucesso
-                return true;
-            }
+    // Retorna o objeto preenchido com os dados do banco
+    return alunoDTO;
 
-            // Se nenhuma linha foi retornada, o cadastro não funcionou — retorna false
-            return false;
-        } catch (error) {
-            // Captura e exibe qualquer erro ocorrido durante o cadastro
-            console.error(`Erro ao cadastrar aluno: ${error}`);
-            // Retorna false indicando falha
-            return false;
-        }
+  } catch (error) {
+    // console.error é o método correto para registrar erros no Node.js
+    // Ele escreve no stderr e aparece em vermelho no terminal
+    console.error(`Erro ao realizar a consulta: ${error}`);
+
+    // Retorna null para indicar que não foi possível buscar o aluno
+    return null;
+  }
+}
+
+/**
+ * Cadastra um novo aluno no banco de dados
+ * @param aluno Objeto Aluno contendo as informações a serem cadastradas
+ * @returns Boolean indicando se o cadastro foi bem-sucedido
+ */
+static async cadastrarAluno(aluno: Aluno): Promise<boolean> {
+  try {
+    // Query SQL de inserção
+    // Os placeholders $1, $2... são substituídos pelos valores reais em tempo de execução
+    // "RETURNING id_aluno" faz o banco retornar o ID gerado automaticamente após o INSERT
+    // ⚠️ ATENÇÃO: os placeholders NÃO devem ter aspas simples ao redor ($1 e não '$1')
+    // Com aspas, o banco interpreta como texto literal e ignora o valor passado
+    const queryInsertAluno = `
+      INSERT INTO Aluno (nome, sobrenome, data_nascimento, endereco, email, celular)
+      VALUES ($1, $2, $3, $4, $5, $6)
+      RETURNING id_aluno;
+    `;
+
+    // Executa a query passando os valores do objeto Aluno
+    // .toUpperCase() converte para maiúsculas; .toLowerCase() converte para minúsculas
+    const result = await database.query(queryInsertAluno, [
+      aluno.getNome().toUpperCase(),           // Nome em maiúsculas
+      aluno.getSobrenome().toUpperCase(),      // Sobrenome em maiúsculas
+      aluno.getDataNascimento(),               // Data de nascimento sem transformação
+      aluno.getEndereco().toUpperCase(),       // Endereço em maiúsculas
+      aluno.getEmail().toLowerCase(),          // E-mail em minúsculas
+      aluno.getCelular()                       // Celular sem transformação
+    ]);
+
+    // Verifica se o banco retornou pelo menos uma linha (confirma que o INSERT funcionou)
+    if (result.rows.length > 0) {
+      console.log(`Aluno cadastrado com sucesso. ID: ${result.rows[0].id_aluno}`);
+      return true;
     }
+
+    // Se nenhuma linha foi retornada, o cadastro falhou
+    return false;
+
+  } catch (error) {
+    // Captura e exibe qualquer erro ocorrido durante o cadastro
+    console.error(`Erro ao cadastrar aluno: ${error}`);
+
+    // Retorna false indicando falha
+    return false;
+  }
+}
 
     /**
     * Remove um aluno do banco de dados
